@@ -62,12 +62,17 @@ threading.Thread(target=read_serial, daemon=True).start()
 app.layout = html.Div([
     
     dbc.NavbarSimple(
-        brand = "Sat-Dash",
+        brand = html.Div(
+            "Sat-Dash",
+            style={'fontWeight':'600'}
+
+        ),
         color = "#1e1e1e",
         sticky = "top",
         dark = True,
         children=[
             html.Div(id='date-time'),
+            html.Button('Save Data', id='save-data-button', n_clicks=0),
         ], 
         style={'height': '40px'}
     ),
@@ -184,6 +189,27 @@ app.layout = html.Div([
 ])
 
 @callback(
+    Output('save-data-button', 'n_clicks'),
+    Input('save-data-button', 'n_clicks')
+)
+
+def save_data(n_clicks):
+    if n_clicks > 0:
+        with data_lock:
+            if not data.empty:
+                for sensor_type in ['Temperature', 'Pressure', 'GPS', 'Gyroscope']:
+                    sensor_data = data[data['sensor_type'] == sensor_type]
+                    if not sensor_data.empty:
+                        filename = f'{sensor_type.lower()}_data.csv'
+                        sensor_data.to_csv(filename, index=False)
+                        print(f"Data saved to {filename}")
+                    else:
+                        print(f"No data to save for {sensor_type}.")
+            else:
+                print("No data to save.")
+    return 0 
+
+@callback(
     Output('start-button', 'children'),
     Input('start-button', 'n_clicks'),
     Input('sensor-dropdown', 'value'),
@@ -266,7 +292,7 @@ def update_graphs(n):
                             lon=gps_data['lon'].mean()
                         ),
                         pitch=0,
-                        zoom=0,
+                        zoom=0,  
                         style='dark',
                     ),
                     margin=dict(l=0, r=0, t=0, b=0),
@@ -343,7 +369,7 @@ def update_graphs(n):
             # Filtering pressure data
             pressure_data = data[data['sensor_type'] == 'Pressure'].copy()
             if not pressure_data.empty:
-                pressure_data = pressure_data.astype({'value': float})
+                pressure_data = pressure_data.astype({ 'value': float})
                 latest_pressure = pressure_data.iloc[-1]['value']
 
                 # Figure for pressure
@@ -376,7 +402,7 @@ def update_graphs(n):
                 gauge_pressure_fig = go.Figure(go.Indicator(
                     mode="gauge+number",
                     value=latest_pressure,
-                    title={'text': "Current Pressure ", 'font': {'size': 15}},
+                    title={'text': "Current Pressure", 'font': {'size': 15}},
                     gauge={
                         'axis': {'range': [None, 100], 'tickcolor': 'gray'},
                         'bar': {'color': '#FE347E'},
