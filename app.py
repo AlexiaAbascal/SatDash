@@ -1,12 +1,11 @@
 import dash
 import serial
-from dash import dcc, Input, Output, callback
+from dash import html, dcc, Input, Output, callback
 import pandas as pd
 import plotly.express as px
 import threading
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
-import dash_daq as daq
 
 
 ## Gyroscope : yaw, pitch, roll
@@ -23,7 +22,7 @@ app = dash.Dash(
 )
 
 ## serial port communication configs
-SERIAL_PORT = 'COM5'
+SERIAL_PORT = 'COM3'
 BAUD_RATE = 115200
 
 ## organization structure of received data
@@ -34,29 +33,41 @@ serial_connection = serial.Serial(SERIAL_PORT,BAUD_RATE)
 
 def read_serial():
     while True:
-        try:
-            date = serial_connection.readline().decode('utf-8').strip()
-            time = serial_connection.readline().decode('utf-8').strip()
-            sensor_type = serial_connection.readline().decode('utf-8').strip()
-            value = serial_connection.readline().decode('utf-8').strip()
-                        
-            new_row = pd.DataFrame({
-                'date': [date],
-                'time' : [time],
-                'sensor_type': [sensor_type],
-                'value': [value]
-            })
-            
-            global data
-            data = pd.concat([data, new_row], ignore_index=True)
-            print(f"Stored Data: {data}")
-            
-        except (IndexError, ValueError) as e:
-            print(f"Error parsing data: {e}")
+            try:
+                date = serial_connection.readline().decode('utf-8').strip()
+                time = serial_connection.readline().decode('utf-8').strip()
+                sensor_type = serial_connection.readline().decode('utf-8').strip()
+                value = serial_connection.readline().decode('utf-8').strip()
+                            
+                new_row = pd.DataFrame({
+                    'date': [date],
+                    'time' : [time],
+                    'sensor_type': [sensor_type],
+                    'value': [value]
+                })
+                
+                global data
+                data = pd.concat([data, new_row], ignore_index=True)
+                print(f"Stored Data: {data}")
+                
+            except (IndexError, ValueError) as e:
+                print(f"Error parsing data: {e}")
                        
 threading.Thread(target=read_serial, daemon=True).start()
 
-app.layout = dbc.Container([
+app.layout = html.Div([
+    
+    dbc.NavbarSimple(
+        brand = "Sat-Dash",
+        color = "#1e1e1e",
+        sticky = "top",
+        dark = True,
+        children=[
+            html.Div(id='date-time', style={'color': 'white', 'float': 'right', 'padding': '1rem'})
+        ]
+    ),
+    
+    dbc.Container([
     dbc.Row(
         dbc.Col(
             dcc.Graph(id='gps-map'),
@@ -67,11 +78,11 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col(
             dcc.Graph(id='temperature-scatter'),
-            width=6
+            width=5
         ),
         dbc.Col(
             dcc.Graph(id='temperature-gauge', style={'height': '300px'}),
-            width=6
+            width=5
         )],
         justify='between'
     ),
@@ -89,6 +100,7 @@ app.layout = dbc.Container([
     ),
     dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
 ],fluid=True,style={'padding': '0px', 'margin': '0px', 'maxWidth': '100vw', 'overflowX': 'hidden'})
+])
 
 @app.callback(
     [   
@@ -99,6 +111,8 @@ app.layout = dbc.Container([
 
         Output('pressure-scatter', 'figure'),
         Output('pressure-gauge', 'figure'),
+        
+        Output('date-time', 'children'),
         
         Input('interval-component', 'n_intervals')
     ]
@@ -113,6 +127,10 @@ def update_graphs(n):
     
 
     if not data.empty:
+        # date and time 
+        latest_date_time = data.iloc[-1]
+        date_time = f"{latest_date_time['date']} {latest_date_time['time']}"
+
         # Filtering GPS data
         gps_data = data[data['sensor_type'] == 'Coordinates'].copy()
         if not gps_data.empty:
@@ -137,7 +155,7 @@ def update_graphs(n):
                         lon=gps_data['lon'].mean()
                     ),
                     pitch=0,
-                    zoom=1,  
+                    zoom=1,  # Adjust zoom level as needed
                     style='dark',
                 ),
                 margin=dict(l=0, r=0, t=0, b=0),
@@ -192,10 +210,10 @@ def update_graphs(n):
             gauge_temp_fig.update_layout(paper_bgcolor='#2b2b2b', font_color='white')
        
         # Filtering pressure data
-        pressure_data = data[data['sensor_type'] == 'Pressure'].copy()
+        pressure_data = data[data['sensor_type'] == 'Temperature'].copy()
         if not pressure_data.empty:
             pressure_data = pressure_data.astype({'value': float})
-            latest_temp = pressure_data.iloc[-1]['value']
+            latest_pressure = pressure_data.iloc[-1]['value']
 
             # Figure for pressure
             pressure_fig = px.scatter(
@@ -225,7 +243,7 @@ def update_graphs(n):
             # Gauge for pressure
             gauge_pressure_fig = go.Figure(go.Indicator(
                 mode="gauge+number",
-                value=latest_temp,
+                value=latest_pressure,
                 title={'text': "Current Pressure", 'font': {'size': 18}},
                 gauge={
                     'axis': {'range': [None, 100], 'tickcolor': 'gray'},
@@ -238,8 +256,9 @@ def update_graphs(n):
             ))
 
             gauge_pressure_fig.update_layout(paper_bgcolor='#2b2b2b', font_color='white')
-
-    return map_fig, temp_fig, gauge_temp_fig, pressure_fig, gauge_pressure_fig
+    else :
+        date_time = ""
+    return map_fig, temp_fig, gauge_temp_fig, pressure_fig, gauge_pressure_fig, date_time
     
 if __name__ == '__main__':
     app.run_server(debug=True, use_reloader=False)
