@@ -1,0 +1,139 @@
+html, body {
+    background-color: #1e1e1eff;
+    width: 100%;
+    height: 100%;
+}
+
+.dash-graph {
+    background-color: #2b2b2bff;
+    padding: 0;
+}
+
+#gps-map{
+    height: 25vh;
+}
+
+#date-time{
+    color : white;
+    font-weight: 600;
+    display: flex;
+    align-items : center;
+    margin-right: 10px;
+}
+
+#save-data-button{
+    margin: 20px;
+    border-radius: 18px; 
+    background-color: #15B392; 
+    color: white; 
+    border: none;
+    padding: 2px 10px;  
+    font-size: 15px;
+    font-weight: 600; 
+    cursor: pointer; 
+    transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+#save-data-button:hover {
+    background-color: #54C392; 
+}
+
+.label-yaw, .label-pitch, .label-roll{
+    color :#15B392;
+    font-weight: bold;
+    text-align: center; 
+    width: 100%;
+    margin-left: 40px;
+    margin-top: 10px;
+}
+
+#temperature-scatter, #temperature-gauge,#pressure-scatter, #pressure-gauge {
+    margin: 14px;
+    height: 25vh;
+}
+
+#start-button{
+    border-radius: 18px; 
+    background-color: #15B392; 
+    color: white; 
+    border: none;
+    padding: 2px 15px;  
+    font-size: 15px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+#start-button:hover {
+    background-color:#54C392; 
+}
+
+.button-container {
+    display: flex;
+    justify-content: center; 
+    margin-top: 10px;
+}
+
+.telemetry-container{
+    margin-top : 15px;
+}
+
+#led-yaw, #led-pitch, #led-roll {
+    margin-left : 85px;
+    text-align: center !important;
+}
+
+#led-yaw > div{
+    text-align : center !important;
+}
+
+#led-pitch > div{
+    text-align : center !important;
+}
+
+#led-roll > div {
+    text-align : center !important ;
+}
+
+#led-yaw > div > div{
+    border : solid white !important;
+    border-radius: 10px !important;
+}
+
+#led-pitch > div > div{
+    border : solid white !important;
+    border-radius: 10px !important;
+}
+
+#led-roll > div > div{
+    border : solid white !important;
+    border-radius: 10px !important;
+}
+
+.label-telemetry{
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
+.dash-dropdown, .dash-input{
+    margin-bottom: 10px;
+    width: 200px;
+    border-radius: 5px;
+}
+
+.dash-daql-tank .tick-label {
+    color: white !important;
+}
+
+.label > div {
+    color: white !important;
+}
+
+.dash-debug-menu__outer, .dash-debug-menu {
+    display: none !important;
+}
+.main-svg {
+    border: black;
+}
