@@ -7,6 +7,7 @@ import threading
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 import dash_daq as daq
+import os
 
 ## SENSOR TYPES
 ## Gyroscope : yaw, pitch, roll
@@ -23,7 +24,7 @@ app = dash.Dash(
 )
 
 ## serial port communication configs
-SERIAL_PORT = 'COM3'
+SERIAL_PORT = 'COM5'
 BAUD_RATE = 115200
 
 ## organization structure of received data
@@ -50,7 +51,7 @@ def read_serial():
                 'value': [value]
             })
 
-            with data_lock:  
+            with data_lock: 
                 data = pd.concat([data, new_row], ignore_index=True)
             print(f"Stored Data: {data}")
 
@@ -64,7 +65,7 @@ app.layout = html.Div([
     dbc.NavbarSimple(
         brand = html.Div(
             "Sat-Dash",
-            style={'fontWeight':'600'}
+            style={'fontWeight':'600', 'color': 'white'}
 
         ),
         color = "#1e1e1e",
@@ -93,7 +94,7 @@ app.layout = html.Div([
                     daq.LEDDisplay(
                         id='led-yaw',
                         value='0.00',
-                        color='#FE347E',
+                        color='#15B392',
                         backgroundColor= '#1e1e1e',
                         size=20)
                 ]
@@ -107,7 +108,7 @@ app.layout = html.Div([
                     daq.LEDDisplay(
                         id='led-pitch',
                         value='0.00',
-                        color='#FE347E',
+                        color='#15B392',
                         backgroundColor= '#1e1e1e',
                         size=20
                     )
@@ -122,7 +123,7 @@ app.layout = html.Div([
                     daq.LEDDisplay(
                         id='led-roll',
                         value='0.00',
-                        color='#FE347E',
+                        color='#15B392',
                         backgroundColor= '#1e1e1e',
                         size=20
                     )
@@ -152,7 +153,8 @@ app.layout = html.Div([
                             {'label': 'Temperature', 'value': 'Temperature'},
                             {'label': 'Pressure', 'value': 'Pressure'},
                             {'label': 'GPS', 'value': 'GPS'},
-                            {'label': 'Gyroscope', 'value': 'Gyroscope'}
+                            {'label': 'Gyroscope', 'value': 'Gyroscope'},
+                            {'label': 'Battery', 'value': 'Battery'}
                         ],
                     ), 
                     dcc.Input(
@@ -176,11 +178,29 @@ app.layout = html.Div([
     dbc.Row([
         dbc.Col(
             dcc.Graph(id='pressure-scatter'),
-            width=6
+            width=5
         ),
         dbc.Col(
             dcc.Graph(id='pressure-gauge'),
-            width=6
+            width=5
+        ),
+        dbc.Col(
+            daq.Tank(
+                id='battery-tank',
+                label={"label": "Battery Level", "style": {"color": "white"}}, 
+                units="percent",
+                labelPosition = 'bottom',
+                color = '#15B392', 
+                value = 5,
+                showCurrentValue=True,
+                width=100,
+                height = 160,
+                min=0,
+                max=100,
+
+            ),
+            width = 2
+    
         )],
         justify='between'
     ),
@@ -200,14 +220,29 @@ def save_data(n_clicks):
                 for sensor_type in ['Temperature', 'Pressure', 'GPS', 'Gyroscope']:
                     sensor_data = data[data['sensor_type'] == sensor_type]
                     if not sensor_data.empty:
-                        filename = f'{sensor_type.lower()}_data.csv'
-                        sensor_data.to_csv(filename, index=False)
-                        print(f"Data saved to {filename}")
+                        filename = f'{sensor_type}_data.csv'
+                        if os.path.exists(filename):
+                            with open(filename, 'r') as f:
+                                last_line = f.readlines()[-1].strip()
+                            last_entry = pd.read_csv(filename).iloc[-1]
+                            last_entry_index = sensor_data[(sensor_data == last_entry).all(axis=1)].index
+                            if not last_entry_index.empty:
+                                new_data = sensor_data.loc[last_entry_index[-1] + 1:]
+                            else:
+                                new_data = sensor_data  
+                        else:
+                            new_data = sensor_data  
+                        if not new_data.empty:
+                            new_data.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False)
+                            print(f"New data appended to {filename}.")
+                        else:
+                            print(f"No new data to append for {sensor_type}.")
                     else:
                         print(f"No data to save for {sensor_type}.")
             else:
                 print("No data to save.")
-    return 0 
+    return 0
+
 
 @callback(
     Output('start-button', 'children'),
@@ -242,6 +277,7 @@ def update_button_text(n_clicks, selected_value, interval):
 
         Output('pressure-scatter', 'figure'),
         Output('pressure-gauge', 'figure'),
+        Output('battery-tank','value'),
         
         Output('date-time', 'children'),
         
@@ -264,7 +300,7 @@ def update_graphs(n):
     
     with data_lock:
         if not data.empty:
-            # date and time 
+            # date and time data
             latest_date_time = data.iloc[-1]
             date_time = f"{latest_date_time['date']} {latest_date_time['time']}"
 
@@ -280,7 +316,7 @@ def update_graphs(n):
                     lat=gps_data['lat'],
                     lon=gps_data['lon'],
                     mode='markers',
-                    marker=go.scattermap.Marker(color='#FE347E', size=9),
+                    marker=go.scattermap.Marker(color='#15B392', size=9),
                     text=gps_data['time']
                 ))
                 
@@ -292,7 +328,7 @@ def update_graphs(n):
                             lon=gps_data['lon'].mean()
                         ),
                         pitch=0,
-                        zoom=0,  
+                        zoom=0, 
                         style='dark',
                     ),
                     margin=dict(l=0, r=0, t=0, b=0),
@@ -316,7 +352,7 @@ def update_graphs(n):
             # Filtering temperature data
             temperature_data = data[data['sensor_type'] == 'Temperature'].copy()
             if not temperature_data.empty:
-                temperature_data = temperature_data.astype({ 'value': float})
+                temperature_data = temperature_data.astype({'value': float})
                 latest_temp = temperature_data.iloc[-1]['value']
 
                 # Figure for temperature
@@ -343,7 +379,7 @@ def update_graphs(n):
                     hoverlabel=dict(font=dict(color='rgba(30, 30, 30,1)'))
                 )
 
-                temp_fig.update_traces(marker=dict(color='#FE347E'), marker_size=8)
+                temp_fig.update_traces(marker=dict(color='#15B392'), marker_size=8)
 
                 # Gauge for temperature
                 gauge_temp_fig = go.Figure(go.Indicator(
@@ -352,7 +388,7 @@ def update_graphs(n):
                     title={'text': "Current Temperature", 'font': {'size': 15}},
                     gauge={
                         'axis': {'range': [None, 100], 'tickcolor': 'gray'},
-                        'bar': {'color': '#FE347E'},
+                        'bar': {'color': '#15B392'},
                         'steps': [
                             {'range': [0, 50], 'color': 'darkgray'},
                             {'range': [50, 100], 'color': 'gray'},
@@ -369,7 +405,7 @@ def update_graphs(n):
             # Filtering pressure data
             pressure_data = data[data['sensor_type'] == 'Pressure'].copy()
             if not pressure_data.empty:
-                pressure_data = pressure_data.astype({ 'value': float})
+                pressure_data = pressure_data.astype({'value': float})
                 latest_pressure = pressure_data.iloc[-1]['value']
 
                 # Figure for pressure
@@ -396,7 +432,7 @@ def update_graphs(n):
                     hoverlabel=dict(font=dict(color='rgba(30, 30, 30,1)')),
                 )
 
-                pressure_fig.update_traces(marker=dict(color='#FE347E'), marker_size=8)
+                pressure_fig.update_traces(marker=dict(color='#15B392'), marker_size=8)
 
                 # Gauge for pressure
                 gauge_pressure_fig = go.Figure(go.Indicator(
@@ -405,7 +441,7 @@ def update_graphs(n):
                     title={'text': "Current Pressure", 'font': {'size': 15}},
                     gauge={
                         'axis': {'range': [None, 100], 'tickcolor': 'gray'},
-                        'bar': {'color': '#FE347E'},
+                        'bar': {'color': '#15B392'},
                         'steps': [
                             {'range': [0, 50], 'color': 'darkgray'},
                             {'range': [50, 100], 'color': 'gray'},
@@ -418,12 +454,22 @@ def update_graphs(n):
                     font_color='white', 
                     margin=dict(l=30, r=30, t=55, b=30)
                 )
+                
+                # Filtering battery data
+                battery_data = data[data['sensor_type'] == 'Battery'].copy()
+                if not battery_data.empty:
+                    battery_data = battery_data.astype({'value':float})
+                    latest_battery = battery_data.iloc[-1]['value']
+                    battery_value = float(latest_battery)
+                else:
+                    battery_value = 0
         else :
             date_time = ""
             yaw_value = ""
             pitch_value = ""
             roll_value = ""
-        return map_fig, yaw_value, pitch_value, roll_value, temp_fig, gauge_temp_fig, pressure_fig, gauge_pressure_fig, date_time
+            battery_value = 0
+        return map_fig, yaw_value, pitch_value, roll_value, temp_fig, gauge_temp_fig, pressure_fig, gauge_pressure_fig, battery_value, date_time
         
 if __name__ == '__main__':
     app.run_server(debug=True, use_reloader=False)
